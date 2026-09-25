@@ -1,0 +1,156 @@
+\documentclass[11pt, a4paper]{article}
+\usepackage[a4paper, margin=2.5cm]{geometry}
+\usepackage{fontspec}
+\usepackage[spanish, english, bidi=basic, provide=*]{babel}
+\babelprovide[import, onchar=ids fonts]{spanish}
+\babelfont{rm}{Noto Sans}
+\usepackage{enumitem}
+\setlist[itemize]{label=-}
+\usepackage{hyperref}
+
+\title{\textbf{Guía de Referencia: Gestión de Identidades y Privilegios en Linux}}
+\author{Documentación del Sistema NEXUS-9}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Introducción}
+La administración de identidades en Linux se basa en la manipulación de archivos estructurales (\texttt{/etc/passwd}, \texttt{/etc/group}, \texttt{/etc/shadow}) mediante herramientas de línea de comandos. Este documento detalla las utilidades estándar POSIX y específicas de GNU/Linux requeridas para auditar y modificar cuentas de usuario y grupos, respetando el principio de mínimo privilegio.
+
+\section{Creación y Modificación de Usuarios}
+
+\subsection{useradd}
+\textbf{Descripción:} Crea una nueva cuenta de usuario o actualiza la información predeterminada para los nuevos usuarios. Lee los valores por defecto del archivo \texttt{/etc/default/useradd} y las reglas del sistema de \texttt{/etc/login.defs}.
+
+\textbf{Cuándo ejecutarlo:} Cuando un nuevo operador se incorpora a la red (por ejemplo, al sector-core o a una field-terminal) o cuando un nuevo servicio requiere un usuario dedicado (sin acceso a consola) para ejecutarse de forma segura.
+
+\textbf{Ejemplos prácticos:}
+\begin{itemize}
+    \item \texttt{sudo useradd -m -s /bin/bash operador1} \\
+    El flag \texttt{-m} fuerza la creación del directorio home (\texttt{/home/operador1}), y \texttt{-s} define el intérprete de comandos predeterminado.
+    \item \texttt{sudo useradd -r -s /usr/sbin/nologin servicio\_nexus} \\
+    Crea una cuenta del sistema (\texttt{-r}) con un UID menor a 1000, sin directorio personal y sin capacidad de iniciar sesión (\texttt{nologin}), ideal para ejecutar demonios y respetar el mínimo privilegio.
+\end{itemize}
+
+\subsection{usermod}
+\textbf{Descripción:} Modifica los atributos de una cuenta de usuario existente. Permite cambiar el nombre de inicio de sesión, el directorio principal, la fecha de caducidad de la cuenta o su pertenencia a distintos grupos.
+
+\textbf{Cuándo ejecutarlo:} Cuando un operador cambia de rol, necesita nuevos permisos (añadirlo a grupos suplementarios como \texttt{sudo} o \texttt{wheel}) o cuando sus datos de acceso deben suspenderse temporalmente.
+
+\textbf{Ejemplos prácticos:}
+\begin{itemize}
+    \item \texttt{sudo usermod -aG sudo operador1} \\
+    Añade (\texttt{-a} de \textit{append}) al usuario al grupo suplementario \texttt{sudo}. Es \textbf{crítico} usar \texttt{-a} junto a \texttt{-G}; si se omite la \texttt{-a}, el usuario será eliminado silenciosamente de todos los demás grupos a los que pertenecía.
+    \item \texttt{sudo usermod -L operador1} \\
+    Bloquea (\textit{Lock}) la cuenta del usuario colocando un carácter ``!'' en su contraseña cifrada en \texttt{/etc/shadow}, impidiendo el inicio de sesión sin borrar sus datos.
+\end{itemize}
+
+\subsection{userdel}
+\textbf{Descripción:} Elimina una cuenta de usuario y los archivos relacionados. Modifica los archivos del sistema para borrar todas las referencias al usuario especificado.
+
+\textbf{Cuándo ejecutarlo:} Cuando un operador abandona definitivamente el proyecto o se desinstala un servicio que requería un usuario dedicado.
+
+\textbf{Ejemplos prácticos:}
+\begin{itemize}
+    \item \texttt{sudo userdel operador1} \\
+    Elimina la cuenta pero deja intacto el directorio \texttt{/home/operador1} y sus archivos.
+    \item \texttt{sudo userdel -r operador1} \\
+    Elimina al usuario junto con su directorio home (\texttt{-r} de \textit{remove}) y su cola de correo (\textit{mail spool}), realizando una limpieza completa.
+\end{itemize}
+
+\section{Gestión de Grupos}
+
+\subsection{groupadd}
+\textbf{Descripción:} Crea una nueva cuenta de grupo en el sistema añadiendo la entrada correspondiente en \texttt{/etc/group}.
+
+\textbf{Cuándo ejecutarlo:} Para crear conjuntos lógicos de permisos. Por ejemplo, agrupar a todos los administradores de red o desarrolladores para asignarles permisos de lectura compartidos sobre un directorio específico.
+
+\textbf{Ejemplos prácticos:}
+\begin{itemize}
+    \item \texttt{sudo groupadd mantenimiento} \\
+    Crea un nuevo grupo estándar con el próximo GID disponible.
+    \item \texttt{sudo groupadd -r sensores} \\
+    Crea un grupo de sistema (\texttt{-r}), asignándole un GID bajo.
+\end{itemize}
+
+\subsection{groupmod}
+\textbf{Descripción:} Modifica la definición de un grupo en el sistema, alterando su nombre o su GID.
+
+\textbf{Cuándo ejecutarlo:} Cuando las políticas de nomenclatura de la organización cambian o cuando existen conflictos de GID en redes que comparten sistemas de archivos (NFS).
+
+\textbf{Ejemplos prácticos:}
+\begin{itemize}
+    \item \texttt{sudo groupmod -n ingenieros mantenimiento} \\
+    Cambia el nombre del grupo (\texttt{-n} de \textit{new name}) de ``mantenimiento'' a ``ingenieros''.
+\end{itemize}
+
+\subsection{groupdel}
+\textbf{Descripción:} Elimina un grupo existente. No se puede eliminar el grupo primario de un usuario existente sin eliminar primero al usuario.
+
+\textbf{Cuándo ejecutarlo:} Al finalizar un proyecto específico o reorganizar la jerarquía de roles, limpiando grupos que ya no contienen miembros o no cumplen ninguna función.
+
+\textbf{Ejemplos prácticos:}
+\begin{itemize}
+    \item \texttt{sudo groupdel ingenieros} \\
+    Borra el grupo del sistema. Los archivos que pertenecían a este grupo mantendrán el GID numérico huérfano.
+\end{itemize}
+
+\section{Auditoría y Consulta de Identidades}
+
+\subsection{id}
+\textbf{Descripción:} Imprime los identificadores de usuario (UID) y de grupo (GID) reales y efectivos, junto con los nombres asociados.
+
+\textbf{Cuándo ejecutarlo:} Constantemente, como herramienta de diagnóstico para verificar ``quién soy'' en la terminal actual, confirmar si el comando \texttt{usermod} tuvo éxito, o validar los permisos efectivos antes de ejecutar tareas críticas.
+
+\textbf{Ejemplos prácticos:}
+\begin{itemize}
+    \item \texttt{id} \\
+    Muestra los detalles del usuario actual.
+    \item \texttt{id operador1} \\
+    Muestra el UID, el GID primario y todos los grupos suplementarios a los que pertenece ``operador1''.
+\end{itemize}
+
+\subsection{groups}
+\textbf{Descripción:} Imprime los nombres de los grupos a los que pertenece un usuario. Es una herramienta más simplificada en comparación con \texttt{id}.
+
+\textbf{Cuándo ejecutarlo:} Para obtener rápidamente una lista legible por humanos de las membresías de un usuario.
+
+\textbf{Ejemplos prácticos:}
+\begin{itemize}
+    \item \texttt{groups operador1} \\
+    Salida esperada: \texttt{operador1 : operador1 sudo mantenimiento}
+\end{itemize}
+
+\subsection{getent}
+\textbf{Descripción:} Obtiene entradas de las bases de datos de servicios de nombres (Name Service Switch), como \texttt{passwd}, \texttt{group}, \texttt{hosts}, entre otras. 
+
+\textbf{Cuándo ejecutarlo:} A diferencia de leer directamente el archivo con \texttt{cat /etc/passwd}, \texttt{getent} consultará todas las bases de datos configuradas, incluyendo usuarios que provienen de servidores de red centralizados (LDAP, Active Directory). Es la forma más fiable de consultar identidades.
+
+\textbf{Ejemplos prácticos:}
+\begin{itemize}
+    \item \texttt{getent passwd} \\
+    Muestra la lista de todos los usuarios reconocidos por el sistema.
+    \item \texttt{getent group sudo} \\
+    Muestra los detalles del grupo \texttt{sudo}, indicando específicamente quiénes son los usuarios que pertenecen a él en su formato delimitado por comas.
+\end{itemize}
+
+\section{Seguridad y Autenticación}
+
+\subsection{passwd}
+\textbf{Descripción:} Actualiza los tokens de autenticación (contraseñas) de un usuario. Aplica políticas de complejidad de contraseñas y actualiza el archivo cifrado \texttt{/etc/shadow}.
+
+\textbf{Cuándo ejecutarlo:} Cuando un usuario necesita rotar su credencial de acceso por políticas de seguridad, cuando un administrador asigna una clave inicial, o para forzar la expiración de la misma.
+
+\textbf{Ejemplos prácticos:}
+\begin{itemize}
+    \item \texttt{passwd} \\
+    Permite al usuario actual cambiar su propia contraseña (requiere conocer la clave actual).
+    \item \texttt{sudo passwd operador1} \\
+    Permite al administrador (\textit{root}) sobrescribir la contraseña de ``operador1'' sin necesidad de conocer la clave anterior.
+    \item \texttt{sudo passwd -e operador1} \\
+    Hace expirar (\texttt{-e}) la contraseña actual. La próxima vez que ``operador1'' inicie sesión, el sistema lo obligará a configurar una contraseña nueva inmediatamente.
+\end{itemize}
+
+\end{document}

@@ -1,0 +1,43 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{geometry}
+\geometry{a4paper, margin=2.5cm}
+\usepackage{hyperref}
+
+\title{\textbf{Etapa: Usuarios, grupos y privilegios \\ Proyecto NEXUS-9}}
+\author{Documentación del Sistema}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section*{Preguntas de Investigación}
+
+\subsection*{¿Qué diferencia existe entre un usuario y un grupo?}
+Un \textbf{usuario} representa una identidad individual dentro del sistema (puede ser una persona física o un servicio del sistema) que puede poseer archivos y ejecutar procesos. Un \textbf{grupo}, por otro lado, es una colección lógica de usuarios. Sirve para administrar de forma eficiente los permisos: en lugar de asignar permisos archivo por archivo a cada usuario individualmente, se pueden asignar a un grupo, y todos los miembros de ese grupo heredarán dichos permisos.
+
+\subsection*{¿Qué información contienen /etc/passwd, /etc/group y /etc/shadow?}
+\begin{itemize}
+    \item \textbf{/etc/passwd:} Contiene la información pública de las cuentas de usuario. Cada línea representa a un usuario e incluye su nombre de inicio de sesión, el UID (User ID), el GID (Group ID) de su grupo primario, un campo de descripción, la ruta de su directorio \textit{home} y el intérprete de comandos (\textit{shell}) asignado.
+    \item \textbf{/etc/group:} Contiene la información de los grupos del sistema. Muestra el nombre del grupo, el GID y una lista de los nombres de los usuarios que pertenecen a ese grupo como miembros suplementarios.
+    \item \textbf{/etc/shadow:} Almacena las contraseñas cifradas de los usuarios y metadatos sobre la caducidad y políticas de las contraseñas. Este archivo tiene permisos muy restrictivos (generalmente solo \textit{root} puede leerlo) para proteger el sistema contra ataques de fuerza bruta.
+\end{itemize}
+
+\subsection*{¿Qué representan UID y GID?}
+El núcleo de Linux no reconoce nombres de texto. \textbf{UID} (\textit{User Identifier}) es el número de identificación único que el sistema operativo asigna internamente a cada usuario. De la misma manera, el \textbf{GID} (\textit{Group Identifier}) es el número que identifica de manera única a cada grupo. Cuando vemos nombres en la terminal, el sistema simplemente está traduciendo esos UID y GID consultando los archivos \texttt{/etc/passwd} y \texttt{/etc/group}.
+
+\subsection*{¿Qué diferencia existe entre grupo primario y grupos suplementarios?}
+El \textbf{grupo primario} se asigna al usuario en el momento de su creación (se define en \texttt{/etc/passwd}). Cuando un usuario crea un archivo nuevo, ese archivo pertenece por defecto a su grupo primario. Los \textbf{grupos suplementarios} son grupos adicionales a los que un usuario puede ser agregado (definidos en \texttt{/etc/group}) para otorgarle permisos extra sobre directorios o archivos compartidos con otros usuarios o servicios, sin cambiar su grupo base.
+
+\subsection*{¿Por qué root posee un tratamiento especial?}
+El usuario \textit{root} tiene el UID 0. En los sistemas Linux, el núcleo verifica si el UID de quien ejecuta una acción es 0; de ser así, omite de forma automática todas las comprobaciones habituales de permisos de lectura, escritura y ejecución. Esto le otorga a \textit{root} control absoluto sobre el sistema, permitiéndole modificar configuraciones críticas, acceder a cualquier archivo y gestionar hardware, lo cual es necesario para la administración central, pero extremadamente peligroso si se usa para tareas cotidianas.
+
+\subsection*{¿Qué problema intenta resolver sudo?}
+El comando \texttt{sudo} (\textit{SuperUser DO}) resuelve el problema de seguridad y trazabilidad que supone compartir la contraseña de \textit{root} o iniciar sesión permanentemente como superusuario. Permite a usuarios normales y autorizados ejecutar comandos específicos con privilegios elevados de forma temporal, exigiendo su propia contraseña en lugar de la de \textit{root}. Además, \texttt{sudo} registra cada comando ejecutado en los archivos de \textit{log} del sistema, permitiendo saber qué administrador hizo qué modificación.
+
+\subsection*{¿Qué significa aplicar el principio de mínimo privilegio?}
+Significa que a un usuario, programa o proceso se le deben otorgar única y exclusivamente los permisos estrictamente necesarios para cumplir con su función, y por el tiempo mínimo indispensable. En NEXUS-9, no usar \textit{root} como usuario habitual y configurar cuentas administrativas solo con los permisos de \texttt{sudo} necesarios es la aplicación directa de este principio. Evita que un error humano o la vulneración de una cuenta comprometa la totalidad del sistema.
+
+\end{document}
